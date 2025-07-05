@@ -1,0 +1,1 @@
+export const BACKEND_URL = "https://minipaytm-be.onrender.com/api/v1/"
