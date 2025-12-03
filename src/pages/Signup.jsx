@@ -7,77 +7,132 @@ import { SubHeading } from "../components/SubHeading";
 import axios from "axios";
 import { BACKEND_URL } from "../../config";
 import { useNavigate } from "react-router-dom";
+import { LoadingSpinner } from "../components/LoadingSpinner";
 
 export const Signup = () => {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    username: "",
+    password: ""
+  });
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSignup = async () => {
-    if (!firstName || !lastName || !username || !password) {
-      setError("All fields are required.");
-      return;
+  const handleChange = (field) => (e) => {
+    setFormData(prev => ({ ...prev, [field]: e.target.value }));
+    // Clear error for this field when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: null }));
     }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = "First name is required";
+    }
+    
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = "Last name is required";
+    }
+    
+    if (!formData.username) {
+      newErrors.username = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.username)) {
+      newErrors.username = "Invalid email format";
+    }
+    
+    if (!formData.password) {
+      newErrors.password = "Password is required";
+    } else if (formData.password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters";
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSignup = async () => {
+    if (!validateForm()) return;
 
     try {
       setLoading(true);
-      const response = await axios.post(BACKEND_URL + "user/signup", {
-        username,
-        firstName,
-        lastName,
-        password,
-      });
+      setErrors({});
+      const response = await axios.post(BACKEND_URL + "user/signup", formData);
       localStorage.setItem("token", response.data.token);
-      navigate("/signin"); // optional: auto-redirect
+      navigate("/dashboard");
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || "Signup failed.");
+      setErrors({
+        general: err.response?.data?.message || "Signup failed. Please try again."
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSignup();
+    }
+  };
+
   return (
-    <div className="bg-slate-300 h-screen flex justify-center items-center">
-      <div className="rounded-lg bg-white w-80 text-center p-6 shadow-lg animate-fade-in">
+    <div className="bg-gradient-to-br from-slate-100 to-slate-300 min-h-screen flex justify-center items-center px-4 py-8">
+      <div className="rounded-lg bg-white w-full max-w-md text-center p-8 shadow-2xl animate-fade-in">
         <Heading label="Sign up" />
         <SubHeading label="Enter your information to create an account" />
 
         <InputBox
-          onChange={(e) => setFirstName(e.target.value)}
-          placeholder="First Name"
+          onChange={handleChange('firstName')}
+          value={formData.firstName}
+          placeholder="John"
           label="First Name"
           id="first-name"
+          error={errors.firstName}
         />
         <InputBox
-          onChange={(e) => setLastName(e.target.value)}
-          placeholder="Last Name"
+          onChange={handleChange('lastName')}
+          value={formData.lastName}
+          placeholder="Doe"
           label="Last Name"
           id="last-name"
+          error={errors.lastName}
         />
         <InputBox
-          onChange={(e) => setUsername(e.target.value)}
+          onChange={handleChange('username')}
+          value={formData.username}
           placeholder="example@example.com"
           label="Email"
           id="email"
+          error={errors.username}
         />
         <InputBox
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={handleChange('password')}
+          value={formData.password}
           placeholder="••••••"
           label="Password"
+          type="password"
           id="password"
+          onKeyDown={handleKeyDown}
+          error={errors.password}
         />
 
-        {error && (
-          <div className="text-red-500 text-sm mt-2 animate-fade-in">{error}</div>
+        {errors.general && (
+          <div className="text-red-500 text-sm mb-3 p-2 bg-red-50 rounded animate-fade-in">
+            {errors.general}
+          </div>
         )}
 
         <div className="pt-4">
-          <Button onClick={handleSignup} label={loading ? "Signing up..." : "Sign up"} />
+          <Button 
+            onClick={handleSignup} 
+            label={loading ? <LoadingSpinner size="sm" className="mx-auto" /> : "Sign up"}
+            disabled={loading}
+          />
         </div>
 
         <BottomWarning label="Already have an account?" buttonText="Sign in" to="/signin" />
